@@ -1,0 +1,387 @@
+generator client {
+	provider = "prisma-client-js"
+}
+
+datasource db {
+	provider = "postgresql"
+}
+
+enum Role {
+	PATIENT
+	DOCTOR
+	RECEPTIONIST
+	LAB_STAFF
+	ADMIN
+}
+
+enum Gender {
+	MALE
+	FEMALE
+	OTHER
+}
+
+enum BloodGroup {
+	A_POS
+	A_NEG
+	B_POS
+	B_NEG
+	AB_POS
+	AB_NEG
+	O_POS
+	O_NEG
+}
+
+enum AppointmentStatus {
+	SCHEDULED
+	CONFIRMED
+	IN_PROGRESS
+	COMPLETED
+	CANCELLED
+}
+
+enum AppointmentType {
+	ONLINE
+	WALK_IN
+}
+
+enum LabOrderStatus {
+	ORDERED
+	SAMPLE_COLLECTED
+	PROCESSING
+	RESULT_READY
+}
+
+enum BillStatus {
+	DRAFT
+	ISSUED
+	PAID
+	PARTIALLY_PAID
+	CANCELLED
+}
+
+enum PaymentMethod {
+	CASH
+	CARD
+	UPI
+}
+
+model User {
+	id           String         @id @default(uuid()) @db.Uuid
+	email        String         @unique
+	passwordHash String
+	role         Role
+	firstName    String
+	lastName     String
+	phone        String?        @unique
+	isActive     Boolean        @default(true)
+	createdAt    DateTime       @default(now())
+	updatedAt    DateTime       @updatedAt
+	patient      Patient?
+	doctor       Doctor?
+	refreshTokens RefreshToken[]
+	notifications Notification[]
+	auditLogs    AuditLog[]     @relation("UserAuditLogs")
+}
+
+model Patient {
+	id                   String         @id @default(uuid()) @db.Uuid
+	userId               String?        @unique @db.Uuid
+	medicalRecordNumber  String         @unique
+	firstName            String
+	lastName             String
+	gender               Gender
+	dateOfBirth          DateTime
+	bloodGroup           BloodGroup?
+	phone                String?
+	email                String?
+	address              String?
+	emergencyContactName String?
+	emergencyContactPhone String?
+	allergies            String[]
+	chronicConditions    String[]
+	createdAt            DateTime       @default(now())
+	updatedAt            DateTime       @updatedAt
+	user                 User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+	appointments         Appointment[]
+	consultations        Consultation[]
+	labOrders            LabOrder[]
+	bills                Bill[]
+	prescriptions        Prescription[]
+
+	@@index([userId])
+}
+
+model Department {
+	id          String      @id @default(uuid()) @db.Uuid
+	name        String      @unique
+	code        String      @unique
+	description String?
+	createdAt   DateTime    @default(now())
+	updatedAt   DateTime    @updatedAt
+	doctors     Doctor[]
+	appointments Appointment[]
+}
+
+model Doctor {
+	id                String         @id @default(uuid()) @db.Uuid
+	userId            String?        @unique @db.Uuid
+	departmentId      String         @db.Uuid
+	licenseNumber     String         @unique
+	firstName         String
+	lastName          String
+	specialization    String
+	consultationFee   Decimal        @db.Decimal(10, 2)
+	startTime         String         @default("09:00")
+	endTime           String         @default("17:00")
+	slotDurationMinutes Int          @default(30)
+	availableDays     String[]
+	yearsOfExperience Int?
+	phone             String?
+	email             String?
+	bio               String?
+	createdAt         DateTime       @default(now())
+	updatedAt         DateTime       @updatedAt
+	user              User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+	department        Department     @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+	appointments      Appointment[]
+	consultations     Consultation[]
+	doctorLeaves      DoctorLeave[]
+	labOrders         LabOrder[]
+	prescriptions     Prescription[]
+
+	@@index([userId])
+	@@index([departmentId])
+}
+
+model DoctorLeave {
+	id        String   @id @default(uuid()) @db.Uuid
+	doctorId  String   @db.Uuid
+	startDate DateTime
+	endDate   DateTime
+	reason    String
+	createdAt DateTime @default(now())
+	updatedAt DateTime @updatedAt
+	doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+	@@index([doctorId])
+	@@unique([doctorId, startDate, endDate])
+}
+
+model Appointment {
+	id                 String             @id @default(uuid()) @db.Uuid
+	appointmentNumber   String             @unique
+	patientId          String             @db.Uuid
+	doctorId           String             @db.Uuid
+	departmentId       String             @db.Uuid
+	appointmentType    AppointmentType
+	status             AppointmentStatus  @default(SCHEDULED)
+	scheduledAt        DateTime
+	durationMinutes    Int
+	reason             String
+	notes              String?
+	cancellationReason String?
+	createdAt          DateTime           @default(now())
+	updatedAt          DateTime           @updatedAt
+	patient            Patient            @relation(fields: [patientId], references: [id], onDelete: Restrict)
+	doctor             Doctor             @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+	department         Department         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+	consultation       Consultation?
+	bills              Bill[]             @relation("AppointmentBills")
+
+	@@index([patientId])
+	@@index([doctorId])
+	@@index([departmentId])
+}
+
+model Consultation {
+	id             String        @id @default(uuid()) @db.Uuid
+	appointmentId  String        @unique @db.Uuid
+	patientId      String        @db.Uuid
+	doctorId       String        @db.Uuid
+	consultationAt DateTime      @default(now())
+	vitals         Json?
+	symptoms       String
+	diagnosis      String?
+	notes          String?
+	isLocked       Boolean       @default(false)
+	createdAt      DateTime      @default(now())
+	updatedAt      DateTime      @updatedAt
+	appointment    Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+	patient        Patient       @relation(fields: [patientId], references: [id], onDelete: Restrict)
+	doctor         Doctor        @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+	prescription   Prescription?
+	labOrders      LabOrder[]
+	bills          Bill[]        @relation("ConsultationBills")
+
+	@@index([appointmentId])
+	@@index([patientId])
+	@@index([doctorId])
+}
+
+model Prescription {
+	id                 String           @id @default(uuid()) @db.Uuid
+	prescriptionNumber String           @unique
+	consultationId     String           @unique @db.Uuid
+	patientId          String           @db.Uuid
+	doctorId           String           @db.Uuid
+	issuedAt           DateTime         @default(now())
+	remarks            String?
+	createdAt          DateTime         @default(now())
+	updatedAt          DateTime         @updatedAt
+	consultation       Consultation     @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+	patient            Patient          @relation(fields: [patientId], references: [id], onDelete: Restrict)
+	doctor             Doctor           @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+	items              PrescriptionItem[]
+
+	@@index([consultationId])
+	@@index([patientId])
+	@@index([doctorId])
+}
+
+model PrescriptionItem {
+	id             String       @id @default(uuid()) @db.Uuid
+	prescriptionId  String       @db.Uuid
+	medicineName    String
+	dosage          String
+	frequency       String
+	durationDays    Int
+	quantity        Int
+	instructions    String?
+	createdAt       DateTime     @default(now())
+	updatedAt       DateTime     @updatedAt
+	prescription    Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+	@@index([prescriptionId])
+}
+
+model LabOrder {
+	id                String          @id @default(uuid()) @db.Uuid
+	orderNumber       String          @unique
+	patientId         String          @db.Uuid
+	doctorId          String          @db.Uuid
+	consultationId    String?         @db.Uuid
+	testName          String
+	specimenType      String?
+	instructions      String?
+	status            LabOrderStatus  @default(ORDERED)
+	orderedAt         DateTime        @default(now())
+	sampleCollectedAt DateTime?
+	processedAt       DateTime?
+	resultReadyAt     DateTime?
+	createdAt         DateTime        @default(now())
+	updatedAt         DateTime        @updatedAt
+	patient           Patient         @relation(fields: [patientId], references: [id], onDelete: Restrict)
+	doctor            Doctor          @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+	consultation      Consultation?   @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+	results           LabResult[]
+
+	@@index([patientId])
+	@@index([doctorId])
+	@@index([consultationId])
+}
+
+model LabResult {
+	id             String   @id @default(uuid()) @db.Uuid
+	labOrderId     String   @unique @db.Uuid
+	resultName     String
+	resultValue    String
+	unit           String?
+	referenceRange String?
+	remarks        String?
+	resultFileUrl  String?
+	uploadedAt     DateTime @default(now())
+	reportedAt     DateTime @default(now())
+	createdAt      DateTime @default(now())
+	updatedAt      DateTime @updatedAt
+	labOrder       LabOrder @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+
+	@@index([labOrderId])
+}
+
+model Bill {
+	id             String          @id @default(uuid()) @db.Uuid
+	billNumber     String          @unique
+	patientId      String          @db.Uuid
+	appointmentId  String?         @unique @db.Uuid
+	consultationId String?         @unique @db.Uuid
+	status         BillStatus      @default(DRAFT)
+	paymentMethod  PaymentMethod?
+	issuedAt       DateTime        @default(now())
+	dueAt          DateTime?
+	paidAt         DateTime?
+	subtotal       Decimal         @db.Decimal(10, 2)
+	discountAmount Decimal         @db.Decimal(10, 2)
+	taxAmount      Decimal         @db.Decimal(10, 2)
+	totalAmount    Decimal         @db.Decimal(10, 2)
+	amountPaid     Decimal         @db.Decimal(10, 2)
+	notes          String?
+	createdAt      DateTime        @default(now())
+	updatedAt      DateTime        @updatedAt
+	patient        Patient         @relation(fields: [patientId], references: [id], onDelete: Restrict)
+	appointment    Appointment?    @relation("AppointmentBills", fields: [appointmentId], references: [id], onDelete: SetNull)
+	consultation   Consultation?   @relation("ConsultationBills", fields: [consultationId], references: [id], onDelete: SetNull)
+	billItems      BillItem[]
+
+	@@index([patientId])
+	@@index([appointmentId])
+	@@index([consultationId])
+}
+
+model BillItem {
+	id          String   @id @default(uuid()) @db.Uuid
+	billId      String   @db.Uuid
+	description String
+	quantity    Int
+	unitPrice   Decimal  @db.Decimal(10, 2)
+	amount      Decimal  @db.Decimal(10, 2)
+	createdAt   DateTime @default(now())
+	updatedAt   DateTime @updatedAt
+	bill        Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+	@@index([billId])
+}
+
+model Notification {
+	id        String    @id @default(uuid()) @db.Uuid
+	userId    String?   @db.Uuid
+	title     String
+	message   String
+	type      String
+	isRead    Boolean   @default(false)
+	readAt    DateTime?
+	createdAt DateTime  @default(now())
+	updatedAt DateTime  @updatedAt
+	user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+	@@index([userId])
+}
+
+model AuditLog {
+	id         String   @id @default(uuid()) @db.Uuid
+	userId     String?  @db.Uuid
+	action     String
+	entityName String
+	entityId   String
+	details    Json
+	ipAddress  String?
+	userAgent  String?
+	createdAt  DateTime @default(now())
+	updatedAt  DateTime @updatedAt
+	user       User?    @relation("UserAuditLogs", fields: [userId], references: [id], onDelete: SetNull)
+
+	@@index([userId])
+}
+
+model RefreshToken {
+	id         String   @id @default(uuid()) @db.Uuid
+	userId     String   @db.Uuid
+	tokenHash  String   @unique
+	expiresAt  DateTime
+	revokedAt  DateTime?
+	deviceName String?
+	createdAt  DateTime @default(now())
+	updatedAt  DateTime @updatedAt
+	user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+	@@index([userId])
+}
