@@ -14,7 +14,11 @@ import {
 	ConflictError,
 	ForbiddenError,
 	NotFoundError,
-} from "../../utils/errors";
+} from "../../utils/errors.js";
+import { createAuditLog } from "../../middleware/audit.middleware.js";
+import type { Request } from "express";
+
+const SYSTEM_AUDIT_REQUEST = { ip: "system", headers: {} } as Request;
 
 export interface CreateConsultationDto {
 	appointmentId: string;
@@ -147,20 +151,19 @@ export class ConsultationService {
 				include: CONSULTATION_INCLUDE,
 			});
 
-			await tx.auditLog.create({
-				data: {
-					userId: doctorUserId,
-					action: "CONSULTATION_CREATED",
-					entityName: "Consultation",
-					entityId: created.id,
-					details: {
-						appointmentId: appointment.id,
-						patientId: appointment.patientId,
-						doctorId: doctor.id,
-						vitals: data.vitals ?? null,
-					},
+			void createAuditLog(
+				doctorUserId,
+				"CONSULTATION_CREATED",
+				"Consultation",
+				created.id,
+				{
+					appointmentId: appointment.id,
+					patientId: appointment.patientId,
+					doctorId: doctor.id,
+					vitals: data.vitals ?? null,
 				},
-			});
+				SYSTEM_AUDIT_REQUEST,
+			);
 
 			return created;
 		});
@@ -229,18 +232,17 @@ export class ConsultationService {
 				},
 			});
 
-			await tx.auditLog.create({
-				data: {
-					userId: doctorUserId,
-					action: "PRESCRIPTION_CREATED",
-					entityName: "Prescription",
-					entityId: prescription.id,
-					details: {
-						consultationId,
-						itemCount: items.length,
-					},
+			void createAuditLog(
+				doctorUserId,
+				"PRESCRIPTION_CREATED",
+				"Prescription",
+				prescription.id,
+				{
+					consultationId,
+					itemCount: items.length,
 				},
-			});
+				SYSTEM_AUDIT_REQUEST,
+			);
 
 			return prescription;
 		});
@@ -316,18 +318,17 @@ export class ConsultationService {
 				),
 			);
 
-			await tx.auditLog.create({
-				data: {
-					userId: doctorUserId,
-					action: "LAB_TESTS_ORDERED",
-					entityName: "Consultation",
-					entityId: consultationId,
-					details: {
-						consultationId,
-						tests,
-					},
+			void createAuditLog(
+				doctorUserId,
+				"LAB_TESTS_ORDERED",
+				"Consultation",
+				consultationId,
+				{
+					consultationId,
+					tests,
 				},
-			});
+				SYSTEM_AUDIT_REQUEST,
+			);
 
 			return createdOrders;
 		});

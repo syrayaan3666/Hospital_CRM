@@ -20,4 +20,3 @@ export const requireRole = (...roles: Role[]): RequestHandler => {
 		return next();
 	};
 };
-

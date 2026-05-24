@@ -11,7 +11,11 @@ import {
 	ConflictError,
 	ForbiddenError,
 	NotFoundError,
-} from "../../utils/errors";
+} from "../../utils/errors.js";
+import { createAuditLog } from "../../middleware/audit.middleware.js";
+import type { Request } from "express";
+
+const SYSTEM_AUDIT_REQUEST = { ip: "system", headers: {} } as Request;
 
 export interface BillItemDto {
 	description: string;
@@ -117,19 +121,18 @@ export class BillService {
 			include: BILL_INCLUDE,
 		});
 
-		await tx.auditLog.create({
-			data: {
-				userId: createdByUserId,
-				action: "BILL_DRAFT_CREATED",
-				entityName: "Bill",
-				entityId: bill.id,
-				details: {
-					appointmentId,
-					billNumber,
-					totalAmount: bill.totalAmount.toString(),
-				},
+		void createAuditLog(
+			createdByUserId,
+			"BILL_DRAFT_CREATED",
+			"Bill",
+			bill.id,
+			{
+				appointmentId,
+				billNumber,
+				totalAmount: bill.totalAmount.toString(),
 			},
-		});
+			SYSTEM_AUDIT_REQUEST,
+		);
 
 		return bill;
 	}
@@ -195,19 +198,19 @@ export class BillService {
 				include: BILL_INCLUDE,
 			});
 
-			await tx.auditLog.create({
-				data: {
-					action: "BILL_ITEM_ADDED",
-					entityName: "Bill",
-					entityId: updatedBill.id,
-					details: {
-						billId,
-						description: item.description,
-						quantity: item.quantity,
-						unitPrice: item.unitPrice,
-					},
+			void createAuditLog(
+				"system",
+				"BILL_ITEM_ADDED",
+				"Bill",
+				updatedBill.id,
+				{
+					billId,
+					description: item.description,
+					quantity: item.quantity,
+					unitPrice: item.unitPrice,
 				},
-			});
+				SYSTEM_AUDIT_REQUEST,
+			);
 
 			return {
 				...updatedBill,
@@ -261,18 +264,17 @@ export class BillService {
 				});
 			}
 
-			await tx.auditLog.create({
-				data: {
-					userId: requestingUserId,
-					action: "BILL_ISSUED",
-					entityName: "Bill",
-					entityId: updatedBill.id,
-					details: {
-						billNumber: updatedBill.billNumber,
-						amount: updatedBill.totalAmount.toString(),
-					},
+			void createAuditLog(
+				requestingUserId,
+				"BILL_ISSUED",
+				"Bill",
+				updatedBill.id,
+				{
+					billNumber: updatedBill.billNumber,
+					amount: updatedBill.totalAmount.toString(),
 				},
-			});
+				SYSTEM_AUDIT_REQUEST,
+			);
 
 			return updatedBill;
 		});
@@ -332,18 +334,18 @@ export class BillService {
 				include: BILL_INCLUDE,
 			});
 
-			await tx.auditLog.create({
-				data: {
-					action: "BILL_PAYMENT_RECORDED",
-					entityName: "Bill",
-					entityId: updatedBill.id,
-					details: {
-						amount,
-						method,
-						paidAmount: nextPaidAmount.toString(),
-					},
+			void createAuditLog(
+				"system",
+				"BILL_PAYMENT_RECORDED",
+				"Bill",
+				updatedBill.id,
+				{
+					amount,
+					method,
+					paidAmount: nextPaidAmount.toString(),
 				},
-			});
+				SYSTEM_AUDIT_REQUEST,
+			);
 
 			return updatedBill;
 		});

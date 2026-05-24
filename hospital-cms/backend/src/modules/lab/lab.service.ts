@@ -11,7 +11,11 @@ import {
 	ConflictError,
 	ForbiddenError,
 	NotFoundError,
-} from "../../utils/errors";
+} from "../../utils/errors.js";
+import { createAuditLog } from "../../middleware/audit.middleware.js";
+import type { Request } from "express";
+
+const SYSTEM_AUDIT_REQUEST = { ip: "system", headers: {} } as Request;
 
 export type LabOrderWithPatient = Prisma.AppointmentGetPayload<{
 	include: {
@@ -174,19 +178,18 @@ export class LabService {
 				data: { status: newStatus },
 			});
 
-			await tx.auditLog.create({
-				data: {
-					userId: requestingUserId,
-					action: "LAB_ORDER_STATUS_UPDATED",
-					entityName: "LabOrder",
-					entityId: updatedOrder.id,
-					details: {
-						fromStatus: order.status,
-						toStatus: newStatus,
-						testName: order.testName,
-					},
+			void createAuditLog(
+				requestingUserId,
+				"LAB_ORDER_STATUS_UPDATED",
+				"LabOrder",
+				updatedOrder.id,
+				{
+					fromStatus: order.status,
+					toStatus: newStatus,
+					testName: order.testName,
 				},
-			});
+				SYSTEM_AUDIT_REQUEST,
+			);
 
 			return updatedOrder;
 		});
@@ -268,19 +271,18 @@ export class LabService {
 				});
 			}
 
-			await tx.auditLog.create({
-				data: {
-					userId: uploadedByUserId,
-					action: "LAB_RESULT_UPLOADED",
-					entityName: "LabResult",
-					entityId: result.id,
-					details: {
-						labOrderId: order.id,
-						testName: order.testName,
-						fileUrl,
-					},
+			void createAuditLog(
+				uploadedByUserId,
+				"LAB_RESULT_UPLOADED",
+				"LabResult",
+				result.id,
+				{
+					labOrderId: order.id,
+					testName: order.testName,
+					fileUrl,
 				},
-			});
+				SYSTEM_AUDIT_REQUEST,
+			);
 
 			return result;
 		});

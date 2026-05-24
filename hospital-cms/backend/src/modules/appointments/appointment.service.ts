@@ -8,8 +8,12 @@ import {
 	BadRequestError,
 	ConflictError,
 	NotFoundError,
-} from "../../utils/errors";
+} from "../../utils/errors.js";
 import { BillService } from "../billing/bill.service.js";
+import { createAuditLog } from "../../middleware/audit.middleware.js";
+import type { Request } from "express";
+
+const SYSTEM_AUDIT_REQUEST = { ip: "system", headers: {} } as Request;
 
 export interface BookAppointmentDto {
 	patientId: string;
@@ -162,21 +166,20 @@ export class AppointmentService {
 					},
 				});
 
-				await tx.auditLog.create({
-					data: {
-						userId: createdByUserId,
-						action: "APPOINTMENT_BOOKED",
-						entityName: "Appointment",
-						entityId: appointment.id,
-						details: {
-							action: "book",
-							appointmentId: appointment.id,
-							patientId: data.patientId,
-							doctorId: data.doctorId,
-							scheduledAt: appointment.scheduledAt,
-						},
+				void createAuditLog(
+					createdByUserId,
+					"APPOINTMENT_BOOKED",
+					"Appointment",
+					appointment.id,
+					{
+						action: "book",
+						appointmentId: appointment.id,
+						patientId: data.patientId,
+						doctorId: data.doctorId,
+						scheduledAt: appointment.scheduledAt,
 					},
-				});
+					SYSTEM_AUDIT_REQUEST,
+				);
 
 				return appointment;
 			},
@@ -221,20 +224,19 @@ export class AppointmentService {
 					);
 				}
 
-				await tx.auditLog.create({
-					data: {
-						userId,
-						action: "APPOINTMENT_STATUS_UPDATED",
-						entityName: "Appointment",
-						entityId: updatedAppointment.id,
-						details: {
-							appointmentId: updatedAppointment.id,
-							fromStatus: appointment.status,
-							toStatus: status,
-							reason: reason ?? null,
-						},
+				void createAuditLog(
+					userId,
+					"APPOINTMENT_STATUS_UPDATED",
+					"Appointment",
+					updatedAppointment.id,
+					{
+						appointmentId: updatedAppointment.id,
+						fromStatus: appointment.status,
+						toStatus: status,
+						reason: reason ?? null,
 					},
-				});
+					SYSTEM_AUDIT_REQUEST,
+				);
 
 				return updatedAppointment;
 			},

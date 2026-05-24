@@ -3,10 +3,10 @@ import {
 	BadRequestError,
 	ForbiddenError,
 	UnauthorizedError,
-} from "../../utils/errors";
+} from "../../utils/errors.js";
 import { BloodGroup, Gender, Role, type User as PrismaUser } from "@prisma/client";
-import { compare, hash } from "bcryptjs";
-import { sign, verify } from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { prisma } from "../../lib/prisma.js";
 
 export interface RegisterDto {
@@ -58,7 +58,7 @@ type StoredRefreshToken = {
 
 export class AuthService {
 	async register(data: RegisterDto): Promise<User> {
-		const passwordHash = await hash(data.password, 12);
+		const passwordHash = await bcrypt.hash(data.password, 12);
 
 		const patientData = data.role === Role.PATIENT ? data.patient : undefined;
 		const patientDateOfBirth = patientData?.dateOfBirth;
@@ -116,7 +116,7 @@ export class AuthService {
 			throw new UnauthorizedError("Invalid email or password");
 		}
 
-		const passwordMatches = await compare(password, user.passwordHash);
+		const passwordMatches = await bcrypt.compare(password, user.passwordHash);
 
 		if (!passwordMatches) {
 			throw new UnauthorizedError("Invalid email or password");
@@ -135,7 +135,7 @@ export class AuthService {
 		await prisma.refreshToken.create({
 			data: {
 				userId: user.id,
-				tokenHash: await hash(refreshToken, 12),
+				tokenHash: await bcrypt.hash(refreshToken, 12),
 				expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 			},
 		});
@@ -193,7 +193,7 @@ export class AuthService {
 			prisma.refreshToken.create({
 				data: {
 					userId: user.id,
-					tokenHash: await hash(nextRefreshToken, 12),
+					tokenHash: await bcrypt.hash(nextRefreshToken, 12),
 					expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 				},
 			}),
@@ -248,8 +248,8 @@ export class AuthService {
 		const jwtRefreshSecret = this.requireEnv("JWT_REFRESH_SECRET");
 
 		return {
-			accessToken: sign(accessPayload, jwtSecret, { expiresIn: "15m" }),
-			refreshToken: sign(refreshPayload, jwtRefreshSecret, { expiresIn: "7d" }),
+			accessToken: jwt.sign(accessPayload, jwtSecret, { expiresIn: "15m" }),
+			refreshToken: jwt.sign(refreshPayload, jwtRefreshSecret, { expiresIn: "7d" }),
 		};
 	}
 
@@ -257,7 +257,10 @@ export class AuthService {
 		const jwtRefreshSecret = this.requireEnv("JWT_REFRESH_SECRET");
 
 		try {
-			const payload = verify(refreshToken, jwtRefreshSecret) as RefreshTokenPayload;
+			const payload = jwt.verify(
+				refreshToken,
+				jwtRefreshSecret,
+			) as RefreshTokenPayload;
 			return {
 				userId: payload.userId,
 				role: payload.role,
@@ -273,7 +276,7 @@ export class AuthService {
 		tokens: StoredRefreshToken[],
 	) {
 		for (const token of tokens) {
-			if (await compare(refreshToken, token.tokenHash)) {
+			if (await bcrypt.compare(refreshToken, token.tokenHash)) {
 				return token;
 			}
 		}
