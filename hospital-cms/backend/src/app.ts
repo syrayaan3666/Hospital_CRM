@@ -35,9 +35,21 @@ const authLimiter = rateLimit({
 });
 
 app.use(helmet());
+const allowedOrigins = new Set([
+	process.env.FRONTEND_URL,
+	"http://localhost:3000",
+	"http://localhost:3001",
+].filter((origin): origin is string => Boolean(origin)));
 app.use(
 	cors({
-		origin: process.env.FRONTEND_URL,
+		origin: (origin, callback) => {
+			if (!origin || allowedOrigins.has(origin)) {
+				callback(null, true);
+				return;
+			}
+
+			callback(new Error(`CORS blocked for origin ${origin}`));
+		},
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
 	}),
