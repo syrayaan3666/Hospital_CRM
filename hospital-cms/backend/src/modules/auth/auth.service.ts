@@ -17,6 +17,14 @@ export interface RegisterDto {
 	phone?: string;
 	role: Role;
 	isActive?: boolean;
+	dateOfBirth?: Date | string;
+	gender?: Gender;
+	bloodGroup?: BloodGroup | null;
+	address?: string | null;
+	emergencyContactName?: string | null;
+	emergencyContactPhone?: string | null;
+	allergies?: string[];
+	chronicConditions?: string[];
 	patient?: {
 		medicalRecordNumber?: string;
 		firstName?: string;
@@ -40,6 +48,13 @@ export interface TokenPair {
 	user: User;
 }
 
+export interface RegisteredPatientUser extends User {
+	patient?: {
+		id: string;
+		medicalRecordNumber: string;
+	};
+}
+
 export type User = Omit<PrismaUser, "passwordHash">;
 
 type RefreshTokenPayload = {
@@ -57,14 +72,25 @@ type StoredRefreshToken = {
 };
 
 export class AuthService {
-	async register(data: RegisterDto): Promise<User> {
+	async register(data: RegisterDto): Promise<RegisteredPatientUser> {
 		const passwordHash = await bcrypt.hash(data.password, 12);
 
 		const patientData = data.role === Role.PATIENT ? data.patient : undefined;
+		const patientFirstName = patientData?.firstName ?? data.firstName;
+		const patientLastName = patientData?.lastName ?? data.lastName;
+		const patientPhone = patientData?.phone ?? data.phone ?? null;
+		const patientEmail = patientData?.email ?? data.email;
+		const patientAddress = patientData?.address ?? data.address ?? null;
+		const patientEmergencyContactName = patientData?.emergencyContactName ?? data.emergencyContactName ?? null;
+		const patientEmergencyContactPhone = patientData?.emergencyContactPhone ?? data.emergencyContactPhone ?? null;
+		const patientAllergies = patientData?.allergies ?? data.allergies ?? [];
+		const patientChronicConditions = patientData?.chronicConditions ?? data.chronicConditions ?? [];
 		const patientDateOfBirth = patientData?.dateOfBirth;
-		const patientGender = patientData?.gender;
+		const patientGender = patientData?.gender ?? data.gender;
+		const patientBloodGroup = patientData?.bloodGroup ?? data.bloodGroup ?? null;
+		const resolvedDateOfBirth = patientDateOfBirth ?? data.dateOfBirth;
 
-		if (data.role === Role.PATIENT && (!patientGender || !patientDateOfBirth)) {
+		if (data.role === Role.PATIENT && (!patientGender || !resolvedDateOfBirth)) {
 			throw new BadRequestError(
 				"Patient registration requires gender and dateOfBirth",
 			);
@@ -86,25 +112,33 @@ export class AuthService {
 								medicalRecordNumber:
 									patientData?.medicalRecordNumber ??
 									`MRN-${Date.now()}-${this.createId().slice(0, 8)}`,
-								firstName: patientData?.firstName ?? data.firstName,
-								lastName: patientData?.lastName ?? data.lastName,
+								firstName: patientFirstName,
+								lastName: patientLastName,
 								gender: patientGender!,
-								dateOfBirth: new Date(patientDateOfBirth!),
-								bloodGroup: patientData?.bloodGroup,
-								phone: patientData?.phone ?? data.phone ?? null,
-								email: patientData?.email ?? data.email,
-								address: patientData?.address ?? null,
-								emergencyContactName: patientData?.emergencyContactName ?? null,
-								emergencyContactPhone: patientData?.emergencyContactPhone ?? null,
-								allergies: patientData?.allergies ?? [],
-								chronicConditions: patientData?.chronicConditions ?? [],
+								dateOfBirth: new Date(resolvedDateOfBirth!),
+								bloodGroup: patientBloodGroup,
+								phone: patientPhone,
+								email: patientEmail,
+								address: patientAddress,
+								emergencyContactName: patientEmergencyContactName,
+								emergencyContactPhone: patientEmergencyContactPhone,
+								allergies: patientAllergies,
+								chronicConditions: patientChronicConditions,
 							},
 						}
 						: undefined,
 			},
+			include: data.role === Role.PATIENT ? {
+				patient: {
+					select: {
+						id: true,
+						medicalRecordNumber: true,
+					},
+				},
+			} : undefined,
 		});
 
-		return this.stripPasswordHash(createdUser);
+		return this.stripPasswordHash(createdUser as PrismaUser & { patient?: { id: string; medicalRecordNumber: string } });
 	}
 
 	async login(email: string, password: string): Promise<TokenPair> {
@@ -284,7 +318,7 @@ export class AuthService {
 		return null;
 	}
 
-	private stripPasswordHash(user: PrismaUser): User {
+	private stripPasswordHash(user: PrismaUser & { patient?: { id: string; medicalRecordNumber: string } }): RegisteredPatientUser {
 		const { passwordHash, ...safeUser } = user;
 		return safeUser;
 	}

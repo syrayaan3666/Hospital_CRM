@@ -13,7 +13,7 @@ router.post(
 	requireRole(Role.RECEPTIONIST, Role.ADMIN),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const result = await billService.createDraftBill(req.params.appointmentId, req.user!.userId);
+			const result = await billService.createDraftBill(String(req.params.appointmentId), req.user!.userId);
 			return res.status(201).json({ success: true, data: result });
 		} catch (error) {
 			next(error);
@@ -27,7 +27,7 @@ router.post(
 	requireRole(Role.RECEPTIONIST, Role.ADMIN),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const result = await billService.addBillItem(req.params.id, req.body, req.user!.role);
+			const result = await billService.addBillItem(String(req.params.id), req.body, req.user!.role);
 			return res.json({ success: true, data: result });
 		} catch (error) {
 			next(error);
@@ -41,7 +41,7 @@ router.patch(
 	requireRole(Role.RECEPTIONIST, Role.ADMIN),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const result = await billService.issueBill(req.params.id, req.user!.userId, req.user!.role);
+			const result = await billService.issueBill(String(req.params.id), req.user!.userId, req.user!.role);
 			return res.json({ success: true, data: result });
 		} catch (error) {
 			next(error);
@@ -56,7 +56,7 @@ router.post(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const result = await billService.recordPayment(
-				req.params.id,
+				String(req.params.id),
 				req.body.amount,
 				req.body.method as PaymentMethod,
 				req.user!.role,
@@ -75,7 +75,7 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const result = await billService.getBillsByPatient(
-				req.params.patientId,
+				String(req.params.patientId),
 				req.user!.userId,
 				req.user!.role,
 			);

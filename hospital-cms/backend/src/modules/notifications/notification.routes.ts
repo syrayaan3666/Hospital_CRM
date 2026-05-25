@@ -23,7 +23,7 @@ router.patch(
 	authenticate,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const result = await notificationService.markAsRead(req.params.id, req.user!.userId);
+			const result = await notificationService.markAsRead(String(req.params.id), req.user!.userId);
 			return res.json({ success: true, data: result });
 		} catch (error) {
 			next(error);

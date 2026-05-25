@@ -7,9 +7,35 @@ import { prisma } from "../../lib/prisma.js";
 const router = Router();
 
 router.get(
+	'/search',
+	authenticate,
+	requireRole(Role.DOCTOR, Role.RECEPTIONIST, Role.ADMIN),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const q = String(req.query.q ?? '');
+
+			const patients = await prisma.patient.findMany({
+				where: {
+					OR: [
+						{ firstName: { contains: q, mode: 'insensitive' } },
+						{ lastName: { contains: q, mode: 'insensitive' } },
+						{ phone: { contains: q, mode: 'insensitive' } },
+					],
+				},
+				orderBy: { firstName: 'asc' },
+			});
+
+			return res.json({ success: true, data: patients });
+		} catch (error) {
+			next(error);
+		}
+	},
+);
+
+router.get(
 	"/count",
 	authenticate,
-	requireRole(Role.ADMIN),
+	requireRole(Role.ADMIN, Role.RECEPTIONIST),
 	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			const count = await prisma.patient.count();
@@ -48,6 +74,26 @@ router.get(
 						message: "Patient profile not found",
 					},
 				});
+			}
+
+			return res.json({ success: true, data: patient });
+		} catch (error) {
+			next(error);
+		}
+	},
+);
+
+router.get(
+	'/:id',
+	authenticate,
+	requireRole(Role.DOCTOR, Role.ADMIN, Role.RECEPTIONIST),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const id = String(req.params.id);
+			const patient = await prisma.patient.findUnique({ where: { id } });
+
+			if (!patient) {
+				return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Patient not found' } });
 			}
 
 			return res.json({ success: true, data: patient });

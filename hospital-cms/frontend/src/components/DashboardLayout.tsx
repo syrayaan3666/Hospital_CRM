@@ -76,7 +76,9 @@ const routeTitles: Array<{ prefix: string; title: string }> = [
   { prefix: '/lab/orders', title: 'Test Orders' },
   { prefix: '/admin/dashboard', title: 'Admin Dashboard' },
   { prefix: '/admin/users', title: 'Users' },
+  { prefix: '/admin/doctors/new', title: 'Add Doctor' },
   { prefix: '/admin/doctors', title: 'Doctors' },
+  { prefix: '/admin/departments/new', title: 'Add Department' },
   { prefix: '/admin/departments', title: 'Departments' },
   { prefix: '/admin/audit', title: 'Audit Logs' },
 ];

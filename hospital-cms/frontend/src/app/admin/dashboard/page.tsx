@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { CalendarDays, FlaskConical, IndianRupee, Users } from 'lucide-react';
 import apiClient from '../../../lib/axios';
 import AuthGuard from '../../../components/AuthGuard';
@@ -21,6 +21,13 @@ interface RevenueResponse {
   success: boolean;
   data: {
     totalRevenue: number;
+  };
+}
+
+interface CountResponse {
+  success: boolean;
+  data: {
+    count: number;
   };
 }
 
@@ -83,36 +90,43 @@ function AdminDashboardContent() {
   useEffect(() => {
     let mounted = true;
 
-    const loadRevenue = async () => {
-      try {
-        const today = new Date().toISOString().slice(0, 10);
-        const response = await apiClient.get<RevenueResponse>(`/billing/revenue/daily?date=${today}`);
-        if (mounted) {
-          setMonthlyRevenueValue({ value: response.data.data.totalRevenue, loading: false, error: false });
-        }
-      } catch {
-        if (mounted) {
-          setMonthlyRevenueValue({ value: '--', loading: false, error: true });
-        }
-      }
-    };
+    const loadDashboard = async () => {
+      const today = new Date().toISOString().slice(0, 10);
 
-    const loadRecentAppointments = async () => {
-      // TODO: backend endpoint needed
-      if (mounted) {
+      try {
+        const [patientsResponse, todayAppointmentsResponse, revenueResponse, labResponse, appointmentsResponse] = await Promise.all([
+          apiClient.get<CountResponse>('/patients/count'),
+          apiClient.get<CountResponse>('/appointments/today-count'),
+          apiClient.get<RevenueResponse>(`/billing/revenue/daily?date=${today}`),
+          apiClient.get<CountResponse>('/lab/pending-count'),
+          apiClient.get<ApiResponse<AppointmentRow[]>>(`/appointments/doctor?date=${today}`),
+        ]);
+
+        if (!mounted) {
+          return;
+        }
+
+        setPatientsCount({ value: patientsResponse.data.data.count, loading: false, error: false });
+        setTodayAppointments({ value: todayAppointmentsResponse.data.data.count, loading: false, error: false });
+        setMonthlyRevenueValue({ value: revenueResponse.data.data.totalRevenue, loading: false, error: false });
+        setPendingLabResults({ value: labResponse.data.data.count, loading: false, error: false });
+        setRecentAppointments(appointmentsResponse.data.data);
+        setAppointmentsLoading(false);
+      } catch {
+        if (!mounted) {
+          return;
+        }
+
+        setPatientsCount({ value: '--', loading: false, error: true });
+        setTodayAppointments({ value: '--', loading: false, error: true });
+        setMonthlyRevenueValue({ value: '--', loading: false, error: true });
+        setPendingLabResults({ value: '--', loading: false, error: true });
         setRecentAppointments([]);
         setAppointmentsLoading(false);
       }
     };
 
-    void loadRevenue();
-    void loadRecentAppointments();
-
-    if (mounted) {
-      setPatientsCount({ value: '--', loading: false, error: false });
-      setTodayAppointments({ value: '--', loading: false, error: false });
-      setPendingLabResults({ value: '--', loading: false, error: false });
-    }
+    void loadDashboard();
 
     return () => {
       mounted = false;
@@ -186,16 +200,14 @@ function AdminDashboardContent() {
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Appointments This Week</h2>
           </div>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={weeklyAppointments}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="day" stroke="#6B7280" />
-                <YAxis stroke="#6B7280" />
-                <Tooltip />
-                <Line type="monotone" dataKey="value" stroke="#2563EB" strokeWidth={3} dot={{ fill: '#2563EB' }} />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="overflow-x-auto">
+            <LineChart width={560} height={288} data={weeklyAppointments}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="day" stroke="#6B7280" />
+              <YAxis stroke="#6B7280" />
+              <Tooltip />
+              <Line type="monotone" dataKey="value" stroke="#2563EB" strokeWidth={3} dot={{ fill: '#2563EB' }} />
+            </LineChart>
           </div>
         </article>
 
@@ -203,20 +215,18 @@ function AdminDashboardContent() {
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Revenue This Month</h2>
           </div>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="week" stroke="#6B7280" />
-                <YAxis stroke="#6B7280" />
-                <Tooltip />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  {monthlyRevenue.map((entry) => (
-                    <Cell key={entry.week} fill="#2563EB" />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="overflow-x-auto">
+            <BarChart width={560} height={288} data={monthlyRevenue}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="week" stroke="#6B7280" />
+              <YAxis stroke="#6B7280" />
+              <Tooltip />
+              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                {monthlyRevenue.map((entry) => (
+                  <Cell key={entry.week} fill="#2563EB" />
+                ))}
+              </Bar>
+            </BarChart>
           </div>
         </article>
       </section>

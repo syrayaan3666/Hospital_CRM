@@ -50,7 +50,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const result = await labService.updateOrderStatus(
-				req.params.id,
+				String(req.params.id),
 				req.body.status as LabOrderStatus,
 				req.user!.userId,
 				req.user!.role,
@@ -69,7 +69,7 @@ router.post(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const result = await labService.uploadResult(
-				req.params.id,
+				String(req.params.id),
 				req.body.fileUrl,
 				req.body.notes,
 				req.user!.userId,
@@ -89,7 +89,7 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const result = await labService.getResultsForPatient(
-				req.params.patientId,
+				String(req.params.patientId),
 				req.user!.userId,
 				req.user!.role,
 			);

@@ -45,7 +45,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const result = await appointmentService.updateStatus(
-				req.params.id,
+				String(req.params.id),
 				req.body.status as AppointmentStatus,
 				req.user!.userId,
 				req.body.reason,
@@ -60,7 +60,7 @@ router.patch(
 router.get(
 	"/today-count",
 	authenticate,
-	requireRole(Role.ADMIN),
+	requireRole(Role.ADMIN, Role.RECEPTIONIST),
 	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			const start = new Date();
@@ -88,14 +88,12 @@ router.get(
 router.get(
 	"/doctor",
 	authenticate,
-	requireRole(Role.DOCTOR, Role.ADMIN),
+	requireRole(Role.DOCTOR, Role.ADMIN, Role.RECEPTIONIST),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			let doctorId = String(req.user!.userId);
+			const date = String(req.query.date ?? "");
 
-			if (req.user!.role === Role.ADMIN && req.query.doctorId) {
-				doctorId = String(req.query.doctorId);
-			} else {
+			if (req.user!.role === Role.DOCTOR) {
 				const doctor = await prisma.doctor.findUnique({
 					where: { userId: req.user!.userId },
 					select: { id: true },
@@ -105,12 +103,26 @@ router.get(
 					throw new BadRequestError("Doctor profile not found");
 				}
 
-				doctorId = doctor.id;
+				const result = await appointmentService.getAppointmentsByDoctor(doctor.id, date);
+				return res.json({ success: true, data: result });
 			}
 
-			const date = String(req.query.date ?? "");
-			const result = await appointmentService.getAppointmentsByDoctor(doctorId, date);
-			return res.json({ success: true, data: result });
+			const appointments = await prisma.appointment.findMany({
+				include: {
+					patient: true,
+					doctor: {
+						include: {
+							department: true,
+						},
+					},
+					department: true,
+				},
+				orderBy: {
+					scheduledAt: "asc",
+				},
+			});
+
+			return res.json({ success: true, data: appointments });
 		} catch (error) {
 			next(error);
 		}
@@ -140,6 +152,31 @@ router.get(
 
 			const result = await appointmentService.getAppointmentsByPatient(patientId);
 			return res.json({ success: true, data: result });
+		} catch (error) {
+			next(error);
+		}
+	},
+);
+
+router.get(
+	"/:id",
+	authenticate,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const id = String(req.params.id);
+			const appointment = await prisma.appointment.findUnique({
+				where: { id },
+				include: {
+					patient: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
+					doctor: { include: { user: { select: { firstName: true, lastName: true, email: true } }, department: true } },
+				},
+			});
+
+			if (!appointment) {
+				return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Appointment not found' } });
+			}
+
+			return res.json({ success: true, data: appointment });
 		} catch (error) {
 			next(error);
 		}

@@ -15,6 +15,7 @@ import { consultationRouter } from "./modules/consultations/consultation.routes.
 import { labRouter } from "./modules/lab/lab.routes.js";
 import { billRouter } from "./modules/billing/bill.routes.js";
 import { notificationRouter } from "./modules/notifications/notification.routes.js";
+import { adminRouter } from "./modules/admin/admin.routes.js";
 
 export const app = express();
 
@@ -55,6 +56,7 @@ app.use("/api/consultations", consultationRouter);
 app.use("/api/lab", labRouter);
 app.use("/api/billing", billRouter);
 app.use("/api/notifications", notificationRouter);
+app.use("/api/admin", adminRouter);
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 	logger.error("Unhandled application error", { error });

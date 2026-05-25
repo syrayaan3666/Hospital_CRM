@@ -7,9 +7,11 @@ const router = Router();
 router.get(
 	"/",
 	authenticate,
-	async (_req: Request, res: Response, next: NextFunction) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			const includeAll = String(req.query.all ?? "").toLowerCase() === "true";
 			const departments = await prisma.department.findMany({
+				where: includeAll ? undefined : ({ isActive: true } as unknown as never),
 				orderBy: { name: "asc" },
 			});
 

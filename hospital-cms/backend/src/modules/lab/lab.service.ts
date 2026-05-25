@@ -44,7 +44,7 @@ export type LabResultWithOrder = PrismaLabResult & {
 	fileUrl: string | null;
 };
 
-const ALLOWED_PENDING_ROLES = [Role.LAB_STAFF, Role.ADMIN, Role.DOCTOR, Role.PATIENT] as const;
+const ALLOWED_PENDING_ROLES: Role[] = [Role.LAB_STAFF, Role.ADMIN, Role.DOCTOR, Role.PATIENT];
 
 export class LabService {
 	async getPendingOrders(
@@ -248,7 +248,7 @@ export class LabService {
 					resultName: order.testName,
 					resultValue: notes,
 					resultFileUrl: fileUrl,
-					notes,
+					remarks: notes,
 				},
 			});
 

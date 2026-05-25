@@ -5,6 +5,27 @@ import { prisma } from "../../lib/prisma.js";
 const router = Router();
 
 router.get(
+	'/me',
+	authenticate,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const doctor = await prisma.doctor.findUnique({
+				where: { userId: req.user!.userId },
+				include: { department: true },
+			});
+
+			if (!doctor) {
+				return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Doctor profile not found' } });
+			}
+
+			return res.json({ success: true, data: doctor });
+		} catch (error) {
+			next(error);
+		}
+	},
+);
+
+router.get(
 	"/",
 	authenticate,
 	async (req: Request, res: Response, next: NextFunction) => {

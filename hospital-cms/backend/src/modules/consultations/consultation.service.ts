@@ -143,7 +143,7 @@ export class ConsultationService {
 					patientId: appointment.patientId,
 					doctorId: doctor.id,
 					consultationAt: new Date(),
-					vitals: data.vitals ?? null,
+					vitals: data.vitals ? (data.vitals as Prisma.InputJsonValue) : Prisma.DbNull,
 					symptoms: data.symptoms,
 					diagnosis: data.diagnosis ?? null,
 					notes: data.notes ?? null,
@@ -169,7 +169,7 @@ export class ConsultationService {
 		});
 
 		return {
-			...consultation,
+			...(consultation as ConsultationWithDetails),
 			allergyWarning: patient.allergies,
 		};
 	}

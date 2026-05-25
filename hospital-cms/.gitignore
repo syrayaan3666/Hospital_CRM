@@ -1,2 +1,35 @@
-.env
+# Dependencies
 node_modules/
+**/node_modules/
+
+# Environment files - NEVER commit these
+.env
+.env.local
+.env.*
+**/.env
+**/.env.local
+**/.env.*
+
+# Next.js build output
+.next/
+**/.next/
+out/
+
+# Backend build output
+dist/
+**/dist/
+
+# Prisma
+*.db
+*.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json

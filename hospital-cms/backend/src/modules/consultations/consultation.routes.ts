@@ -27,7 +27,7 @@ router.post(
 	requireRole(Role.DOCTOR),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const result = await consultationService.addPrescription(req.params.id, req.body.items, req.user!.userId);
+			const result = await consultationService.addPrescription(String(req.params.id), req.body.items, req.user!.userId);
 			return res.status(201).json({ success: true, data: result });
 		} catch (error) {
 			next(error);
@@ -41,7 +41,7 @@ router.post(
 	requireRole(Role.DOCTOR),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const result = await consultationService.orderLabTests(req.params.id, req.body.tests, req.user!.userId);
+			const result = await consultationService.orderLabTests(String(req.params.id), req.body.tests, req.user!.userId);
 			return res.status(201).json({ success: true, data: result });
 		} catch (error) {
 			next(error);
@@ -56,7 +56,7 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const result = await consultationService.getConsultationByAppointment(
-				req.params.appointmentId,
+				String(req.params.appointmentId),
 				req.user!.userId,
 				req.user!.role,
 			);
@@ -74,7 +74,7 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const result = await consultationService.getPatientTimeline(
-				req.params.patientId,
+				String(req.params.patientId),
 				req.user!.userId,
 				req.user!.role,
 			);

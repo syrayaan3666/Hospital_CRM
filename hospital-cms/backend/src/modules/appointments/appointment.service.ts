@@ -353,7 +353,7 @@ export class AppointmentService {
 		}
 
 		const legalTransitions: Record<AppointmentStatus, AppointmentStatus[]> = {
-			[AppointmentStatus.SCHEDULED]: [AppointmentStatus.CONFIRMED, AppointmentStatus.CANCELLED],
+			[AppointmentStatus.SCHEDULED]: [AppointmentStatus.CONFIRMED, AppointmentStatus.IN_PROGRESS, AppointmentStatus.CANCELLED],
 			[AppointmentStatus.CONFIRMED]: [AppointmentStatus.IN_PROGRESS, AppointmentStatus.CANCELLED],
 			[AppointmentStatus.IN_PROGRESS]: [AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED],
 			[AppointmentStatus.COMPLETED]: [],

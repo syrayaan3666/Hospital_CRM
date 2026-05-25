@@ -1,4 +1,4 @@
-import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosHeaders, type AxiosError, type AxiosInstance, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
 
 interface RefreshResponse {
   success: boolean;
@@ -39,7 +39,7 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = window.localStorage.getItem('hms_access_token');
 
   if (token) {
-    config.headers = config.headers ?? {};
+    config.headers = config.headers ?? new AxiosHeaders();
     config.headers.Authorization = `Bearer ${token}`;
   }
 
@@ -63,7 +63,7 @@ apiClient.interceptors.response.use(
 
       window.localStorage.setItem('hms_access_token', nextToken);
 
-      originalRequest.headers = originalRequest.headers ?? {};
+      originalRequest.headers = originalRequest.headers ?? new AxiosHeaders();
       originalRequest.headers.Authorization = `Bearer ${nextToken}`;
 
       return apiClient(originalRequest);
